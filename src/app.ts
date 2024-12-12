@@ -1,6 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import apiRouter from './routes';
+import { buildSchema } from 'graphql';
+import { createHandler } from 'graphql-http/lib/use/express';
+
+var schema = buildSchema(`
+  type Query {
+    hello: String
+  }
+`);
+
+var root = {
+  hello() {
+    return 'Hello world!';
+  }
+};
 
 export const app = express();
 
@@ -14,6 +28,14 @@ app.use(express.text({ type: 'text/html' }));
 app.get('/', (req, res) => {
   res.status(200).send({ status: 'ok' });
 });
+
+app.all(
+  '/graphql',
+  createHandler({
+    schema: schema,
+    rootValue: root
+  })
+);
 
 // v1 routes
 app.use('/api', apiRouter);
