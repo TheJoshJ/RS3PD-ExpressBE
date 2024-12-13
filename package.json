@@ -13,8 +13,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.21.2",
-    "graphql": "^16.9.0",
-    "graphql-http": "^1.22.3",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
