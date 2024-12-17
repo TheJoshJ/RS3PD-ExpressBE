@@ -13,6 +13,15 @@ interface skillValues {
   id: number;
 }
 
+interface quest {
+  title: string;
+  status: string;
+  difficulty: number;
+  members: boolean;
+  questPoints: number;
+  userEligible: boolean;
+}
+
 interface PlayerData {
   magic: number;
   questsStarted: number;
@@ -27,6 +36,7 @@ interface PlayerData {
   melee: number;
   combatlevel: number;
   loggedIn: string;
+  quests: quest[];
 }
 
 const router = express.Router();
@@ -34,10 +44,10 @@ const router = express.Router();
 router.get(
   '/',
   async (
-    req: Request<unknown, unknown, unknown, { username?: string }>,
+    req: Request<unknown, unknown, unknown, { username?: string; quests?: string }>,
     res: Response
   ) => {
-    const { username } = req.query;
+    const { username, quests } = req.query;
 
     if (!username) {
       return res
@@ -46,17 +56,33 @@ router.get(
     }
 
     try {
-      const response = await fetch(
+      // Fetch the main player data
+      const playerResponse = await fetch(
         `https://apps.runescape.com/runemetrics/profile/profile?user=${encodeURIComponent(
           username
         )}&activities=0`
       );
 
-      if (!response.ok) {
+      if (!playerResponse.ok) {
         throw new Error('Failed to fetch player data');
       }
 
-      const data = (await response.json()) as PlayerData;
+      const data = (await playerResponse.json()) as PlayerData;
+
+      // If quests is 'true', fetch and merge the quest data
+      if (quests === 'true') {
+        const questResponse = await fetch(
+          `https://apps.runescape.com/runemetrics/quests?user=${encodeURIComponent(username)}`
+        );
+
+        if (!questResponse.ok) {
+          throw new Error('Failed to fetch quest data');
+        }
+
+        const questData = (await questResponse.json()) as { quests: quest[] };
+        data.quests = questData.quests;
+      }
+
       return res.json(data);
     } catch (error: any) {
       console.error(error);
