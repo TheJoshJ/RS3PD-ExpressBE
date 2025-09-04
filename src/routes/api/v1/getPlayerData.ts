@@ -41,6 +41,103 @@ interface PlayerData {
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/v1/player-data:
+ *   get:
+ *     summary: Get RuneScape player data
+ *     tags: [Player Data]
+ *     parameters:
+ *       - in: query
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: RuneScape player username
+ *         example: "Zezima"
+ *       - in: query
+ *         name: quests
+ *         schema:
+ *           type: string
+ *           enum: ["true"]
+ *         description: Include quest data in response
+ *         example: "true"
+ *     responses:
+ *       200:
+ *         description: Player data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 magic:
+ *                   type: integer
+ *                 questsStarted:
+ *                   type: integer
+ *                 totalskill:
+ *                   type: integer
+ *                 questscomplete:
+ *                   type: integer
+ *                 questsstarted:
+ *                   type: integer
+ *                 totalXp:
+ *                   type: integer
+ *                 ranged:
+ *                   type: integer
+ *                 activities:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       date:
+ *                         type: string
+ *                       details:
+ *                         type: string
+ *                       text:
+ *                         type: string
+ *                 skillvalues:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       level:
+ *                         type: integer
+ *                       xp:
+ *                         type: integer
+ *                       rank:
+ *                         type: integer
+ *                       id:
+ *                         type: integer
+ *                 name:
+ *                   type: string
+ *                 melee:
+ *                   type: integer
+ *                 combatlevel:
+ *                   type: integer
+ *                 loggedIn:
+ *                   type: string
+ *                 quests:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       title:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       difficulty:
+ *                         type: integer
+ *                       members:
+ *                         type: boolean
+ *                       questPoints:
+ *                         type: integer
+ *                       userEligible:
+ *                         type: boolean
+ *       400:
+ *         description: Username parameter is required
+ *       500:
+ *         description: Server error
+ */
 router.get(
   '/',
   async (

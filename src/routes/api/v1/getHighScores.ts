@@ -2,6 +2,24 @@ import express, { Request, Response } from 'express';
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/v1/high-scores:
+ *   get:
+ *     summary: Get RuneScape high scores ranking
+ *     tags: [High Scores]
+ *     description: Retrieves the top 50 players from RuneScape's overall skill ranking
+ *     responses:
+ *       200:
+ *         description: High scores data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: RuneScape high scores data structure
+ *       500:
+ *         description: Server error
+ */
 router.get('/', async (req: Request, res: Response) => {
   try {
     const response = await fetch(
