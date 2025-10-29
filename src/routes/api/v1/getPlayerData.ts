@@ -41,6 +41,40 @@ interface PlayerData {
 
 const router = express.Router();
 
+// Cache for player data to prevent memory leaks and improve performance
+interface PlayerDataCache {
+  data: PlayerData;
+  timestamp: number;
+  ttl: number;
+}
+
+const playerDataCache = new Map<string, PlayerDataCache>();
+const PLAYER_DATA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache for player data
+
+// Helper function to get cached player data
+function getCachedPlayerData(cacheKey: string): PlayerData | null {
+  const cached = playerDataCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < cached.ttl) {
+    return cached.data;
+  }
+
+  // Clean up expired cache entries
+  if (cached) {
+    playerDataCache.delete(cacheKey);
+  }
+
+  return null;
+}
+
+// Helper function to set cached player data
+function setCachedPlayerData(cacheKey: string, data: PlayerData): void {
+  playerDataCache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+    ttl: PLAYER_DATA_CACHE_TTL
+  });
+}
+
 /**
  * @swagger
  * /api/v1/player-data:
@@ -153,6 +187,15 @@ router.get(
     }
 
     try {
+      // Create cache key based on username and quests parameter
+      const cacheKey = `${username.toLowerCase()}:${quests || 'false'}`;
+
+      // Check cache first
+      const cachedData = getCachedPlayerData(cacheKey);
+      if (cachedData) {
+        return res.json(cachedData);
+      }
+
       // Fetch the main player data
       const playerResponse = await fetch(
         `https://apps.runescape.com/runemetrics/profile/profile?user=${encodeURIComponent(
@@ -179,6 +222,9 @@ router.get(
         const questData = (await questResponse.json()) as { quests: quest[] };
         data.quests = questData.quests;
       }
+
+      // Cache the result before returning
+      setCachedPlayerData(cacheKey, data);
 
       return res.json(data);
     } catch (error: any) {

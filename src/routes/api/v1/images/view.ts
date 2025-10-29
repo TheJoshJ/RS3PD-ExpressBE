@@ -61,8 +61,25 @@ export async function listImages(continuationToken?: string, maxKeys: number = 5
   };
 }
 
-// Helper function to get all image keys for offset calculation
+// Cache for image keys to prevent memory leaks
+interface CacheEntry {
+  keys: string[];
+  timestamp: number;
+  ttl: number; // Time to live in milliseconds
+}
+
+let imageKeysCache: CacheEntry | null = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+// Helper function to get all image keys for offset calculation with caching
 export async function getAllImageKeys(): Promise<string[]> {
+  const now = Date.now();
+
+  // Check if we have valid cached data
+  if (imageKeysCache && (now - imageKeysCache.timestamp) < imageKeysCache.ttl) {
+    return imageKeysCache.keys;
+  }
+
   const command = new ListObjectsV2Command({
     Bucket: process.env.R2_BUCKET!,
   });
@@ -71,7 +88,7 @@ export async function getAllImageKeys(): Promise<string[]> {
 
   // Filter for image files only and return keys
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff'];
-  return (response.Contents || [])
+  const keys = (response.Contents || [])
     .filter(obj => {
       const key = obj.Key || '';
       const extension = key.toLowerCase().substring(key.lastIndexOf('.'));
@@ -79,6 +96,20 @@ export async function getAllImageKeys(): Promise<string[]> {
     })
     .map(obj => obj.Key!)
     .sort(); // Sort for consistent ordering
+
+  // Cache the result
+  imageKeysCache = {
+    keys,
+    timestamp: now,
+    ttl: CACHE_TTL
+  };
+
+  return keys;
+}
+
+// Function to clear the cache (useful for admin operations)
+export function clearImageKeysCache(): void {
+  imageKeysCache = null;
 }
 
 const router = express.Router();
@@ -229,8 +260,8 @@ router.get('/', async (req: Request, res: Response) => {
         });
       }
 
-      // For offset pagination, we need to get all keys first (this is less efficient)
-      // In production, you might want to cache this or use a database
+      // For offset pagination, we use cached keys to prevent memory leaks
+      // Cache automatically refreshes every 5 minutes
       const allKeys = await getAllImageKeys();
 
       if (offsetNum >= allKeys.length) {
@@ -290,7 +321,7 @@ router.get('/', async (req: Request, res: Response) => {
 
       const offsetFromPage = (pageNum - 1) * maxKeys;
 
-      // Redirect to offset-based logic
+      // Use cached keys for page-based pagination
       const allKeys = await getAllImageKeys();
       const startAfterKey = offsetFromPage > 0 ? allKeys[offsetFromPage - 1] : undefined;
       const endIndex = Math.min(offsetFromPage + maxKeys, allKeys.length);
@@ -322,6 +353,55 @@ router.get('/', async (req: Request, res: Response) => {
     console.error('Error listing images:', error);
     return res.status(500).json({
       error: 'Failed to list images',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/images/view/clear-cache:
+ *   post:
+ *     summary: Clear the image keys cache (Admin)
+ *     tags: [Images]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Manually clear the cached image keys to force a refresh from Cloudflare R2. Useful for admin operations.
+ *     responses:
+ *       200:
+ *         description: Cache cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Image keys cache cleared successfully"
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Server error
+ */
+router.post('/clear-cache', async (req: Request, res: Response) => {
+  try {
+    // Validate environment variables first
+    validateEnvVars();
+
+    clearImageKeysCache();
+
+    return res.json({
+      success: true,
+      message: 'Image keys cache cleared successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error clearing cache:', error);
+    return res.status(500).json({
+      error: 'Failed to clear cache',
       message: error.message
     });
   }

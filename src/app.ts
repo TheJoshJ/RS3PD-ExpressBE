@@ -3,11 +3,12 @@ import cors from 'cors';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import apiRouter from './routes';
+import { corsOptions } from './middlewares/corsMiddleware';
 
 export const app = express();
 
 // Middleware
-app.use(cors({ origin: true }));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Healthcheck

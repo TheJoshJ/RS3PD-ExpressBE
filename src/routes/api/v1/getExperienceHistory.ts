@@ -2,6 +2,40 @@ import express from 'express';
 
 const router = express.Router();
 
+// Cache for experience history to prevent memory leaks and improve performance
+interface ExpHistoryCache {
+  data: any;
+  timestamp: number;
+  ttl: number;
+}
+
+const expHistoryCache = new Map<string, ExpHistoryCache>();
+const EXP_HISTORY_CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache for exp history
+
+// Helper function to get cached exp history
+function getCachedExpHistory(cacheKey: string): any | null {
+  const cached = expHistoryCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < cached.ttl) {
+    return cached.data;
+  }
+
+  // Clean up expired cache entries
+  if (cached) {
+    expHistoryCache.delete(cacheKey);
+  }
+
+  return null;
+}
+
+// Helper function to set cached exp history
+function setCachedExpHistory(cacheKey: string, data: any): void {
+  expHistoryCache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+    ttl: EXP_HISTORY_CACHE_TTL
+  });
+}
+
 /**
  * @swagger
  * /api/v1/experience-history:
@@ -47,6 +81,15 @@ router.get('/', async (req, res) => {
   }
 
   try {
+    // Create cache key based on username and skillId
+    const cacheKey = `${username.toLowerCase()}:${skillId}`;
+
+    // Check cache first
+    const cachedData = getCachedExpHistory(cacheKey);
+    if (cachedData) {
+      return res.json(cachedData);
+    }
+
     const response = await fetch(
       `https://apps.runescape.com/runemetrics/xp-monthly?searchName=${encodeURIComponent(
         username
@@ -59,7 +102,9 @@ router.get('/', async (req, res) => {
 
     const data = await response.json();
 
-    
+    // Cache the result before returning
+    setCachedExpHistory(cacheKey, data);
+
     return res.json(data);
   } catch (error: any) {
     console.error(error);

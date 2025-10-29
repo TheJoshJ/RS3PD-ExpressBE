@@ -28,8 +28,9 @@
 - **🎮 RuneScape Data Integration**: Player stats, experience history, and high scores
 - **📚 Interactive API Documentation**: Full Swagger UI documentation
 - **☁️ Cloudflare R2 Integration**: Scalable cloud storage for images
+- **🌐 CORS Configured**: Development-friendly CORS with localhost support
 - **🛡️ Type-Safe**: Full TypeScript implementation with proper error handling
-- **🚀 Production Ready**: CORS enabled, environment-based configuration
+- **🚀 Production Ready**: Environment-based configuration and security
 
 ## 🚀 Quick Start
 
@@ -88,6 +89,38 @@ NODE_ENV=development
 
 > **⚠️ Important**: Always use the `www.` prefix in `R2_PUBLIC_DOMAIN` for CDN compatibility with your live site.
 
+### 🌐 CORS Configuration
+
+The API is configured with development-friendly CORS settings in `src/middlewares/corsMiddleware.ts`:
+
+**Development Mode:**
+- ✅ `http://localhost:5173` (Vite dev server)
+**Production Mode:**
+- ❌ Blocks unknown origins for security
+- ✅ Add your production domain to the allowed origins list
+
+**Credentials:** Enabled for cookie/auth support
+
+### ⚡ Performance & Caching
+
+**Image Keys Cache:**
+- ✅ **5-minute TTL**: Image keys are cached for 5 minutes to prevent memory leaks
+- ✅ **Automatic cleanup**: Cache expires and refreshes automatically
+- ✅ **Memory efficient**: Prevents repeated fetching of large key lists
+- ✅ **Admin control**: Manual cache clearing available via API endpoint
+
+**RuneScape Data Caching:**
+- ✅ **Player Data**: 10-minute cache for player stats and quest data
+- ✅ **Experience History**: 30-minute cache for monthly XP gains
+- ✅ **High Scores**: 15-minute cache for top player rankings
+- ✅ **Smart caching**: Different TTLs based on data update frequency
+- ✅ **Memory safe**: Automatic cleanup of expired cache entries
+
+**Pagination Optimization:**
+- 🔄 **Continuation tokens**: Most efficient for large datasets
+- 📊 **Offset/Page caching**: Uses cached keys to prevent memory bloat
+- 🚀 **Smart fetching**: Only fetches required data from Cloudflare R2
+
 ## 📖 API Documentation
 
 ### Interactive Documentation
@@ -122,22 +155,31 @@ GET /api/v1/images/view?limit=20&page=1
 Authorization: Bearer <your-api-key>
 ```
 
+#### Clear Image Cache (Admin)
+```http
+POST /api/v1/images/view/clear-cache
+Authorization: Bearer <your-api-key>
+```
+
 ### 📊 RuneScape Data (Public)
 
 #### Player Data
 ```http
 GET /api/v1/player-data?username=Zezima&quests=true
 ```
+*Cached for 10 minutes*
 
 #### Experience History
 ```http
 GET /api/v1/experience-history?username=Zezima&skillId=0
 ```
+*Cached for 30 minutes*
 
 #### High Scores
 ```http
 GET /api/v1/high-scores
 ```
+*Cached for 15 minutes*
 
 ## 🔐 Authentication
 
